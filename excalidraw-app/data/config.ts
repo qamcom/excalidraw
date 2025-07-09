@@ -43,7 +43,6 @@ export async function getStorageBackend() {
 
   const storageBackendName = import.meta.env.VITE_APP_STORAGE_BACKEND || "";
 
-  console.log(storageBackendName);
   if (storageBackends.has(storageBackendName)) {
     storageBackend = storageBackends.get(storageBackendName) as StorageBackend;
   } else {

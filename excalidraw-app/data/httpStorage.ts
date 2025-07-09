@@ -8,7 +8,6 @@ import {
   restoreElements,
 } from "@excalidraw/excalidraw";
 import { decompressData } from "@excalidraw/excalidraw/data/encode";
-//import { encryptData, IV_LENGTH_BYTES } from "../../src/data/encryption";
 import { ExcalidrawElement, FileId } from "@excalidraw/element/types";
 import {
   AppState,
@@ -18,16 +17,10 @@ import {
 } from "@excalidraw/excalidraw/types";
 import Portal from "../collab/Portal";
 import { reconcileElements } from "@excalidraw/excalidraw";
-/* import { decryptData } from "../../src/data/encryption";
-import { StoredScene } from "./StorageBackend"; */
 import type { Socket } from "socket.io-client";
 
 const HTTP_STORAGE_BACKEND_URL = import.meta.env
   .VITE_APP_HTTP_STORAGE_BACKEND_URL;
-const SCENE_VERSION_LENGTH_BYTES = 4;
-
-// There is a lot of intentional duplication with the firebase file
-// to prevent modifying upstream files and ease futur maintenance of this fork
 
 const httpStorageSceneVersionCache = new WeakMap<Socket, number>();
 
@@ -50,7 +43,6 @@ export const saveToHttpStorage = async (
   elements: readonly SyncableExcalidrawElement[],
   appState: AppState,
 ) => {
-  console.log("save to http storage!!");
   const { roomId, roomKey, socket } = portal;
   if (
     // if no room exists, consider the room saved because there's nothing we can
@@ -78,22 +70,20 @@ export const saveToHttpStorage = async (
       [...elements],
       sceneVersion,
     );
-    /*     if (result) {
-      return {
-        reconciledElements: null,
-      };
-    } */
+    if (result) {
+      httpStorageSceneVersionCache.set(socket, sceneVersion);
+      return getSyncableElements(restoreElements(elements, null));
+    }
     return null;
   }
   // If room already exist, we compare scene versions to check
   // if we're up to date before saving our scene
-  const buffer = await getResponse.json(); //getResponse.arrayBuffer();
-  const sceneVersionFromRequest = buffer.sceneVersion; //parseSceneVersionFromRequest(buffer);
+  const buffer = await getResponse.json();
+  const sceneVersionFromRequest = buffer.sceneVersion;
   if (sceneVersionFromRequest >= sceneVersion) {
     return null;
   }
-
-  const existingElements = buffer.elements; //await getElementsFromBuffer(buffer, roomKey);
+  const existingElements = buffer.elements;
   const reconciledElements = getSyncableElements(
     reconcileElements(elements, existingElements, appState),
   );
@@ -117,15 +107,13 @@ export const loadFromHttpStorage = async (
   roomKey: string,
   socket: Socket | null,
 ): Promise<readonly SyncableExcalidrawElement[] | null> => {
-  console.log(`fetch from ${HTTP_STORAGE_BACKEND_URL}/rooms/${roomId}`);
   const getResponse = await fetch(
     `${HTTP_STORAGE_BACKEND_URL}/rooms/${roomId}`,
   );
-
-  /*   const buffer = await getResponse.arrayBuffer();
-  const elements = await getElementsFromBuffer(buffer, roomKey); */
+  if (!getResponse.ok || getResponse.status === 404) {
+    return null;
+  }
   const response = await getResponse.json();
-  console.log("response", response);
   const elements = response.elements;
 
   if (socket) {
@@ -133,29 +121,6 @@ export const loadFromHttpStorage = async (
   }
   return getSyncableElements(restoreElements(elements, null));
 };
-
-/* const getElementsFromBuffer = async (
-  buffer: ArrayBuffer,
-  key: string,
-): Promise<readonly ExcalidrawElement[]> => {
-  // Buffer should contain both the IV (fixed length) and encrypted data
-  const sceneVersion = parseSceneVersionFromRequest(buffer);
-  const iv = new Uint8Array(
-    buffer.slice(
-      SCENE_VERSION_LENGTH_BYTES,
-      IV_LENGTH_BYTES + SCENE_VERSION_LENGTH_BYTES,
-    ),
-  );
-  const encrypted = buffer.slice(
-    IV_LENGTH_BYTES + SCENE_VERSION_LENGTH_BYTES,
-    buffer.byteLength,
-  );
-
-  return await decryptElements(
-    { sceneVersion, ciphertext: encrypted, iv },
-    key,
-  );
-}; */
 
 export const saveFilesToHttpStorage = async ({
   prefix,
@@ -173,7 +138,10 @@ export const saveFilesToHttpStorage = async ({
         const payloadBlob = new Blob([buffer]);
         const payload = await new Response(payloadBlob).arrayBuffer();
         await fetch(`${HTTP_STORAGE_BACKEND_URL}/files/${id}`, {
-          method: "PUT",
+          method: "POST",
+          /*           headers: {
+            "Content-Type": "application/json", // TODO
+          }, */
           body: payload,
         });
         savedFiles.push(id);
@@ -194,7 +162,6 @@ export const loadFilesFromHttpStorage = async (
   const loadedFiles: BinaryFileData[] = [];
   const erroredFiles = new Map<FileId, true>();
 
-  //////////////
   await Promise.all(
     [...new Set(filesIds)].map(async (id) => {
       try {
@@ -226,7 +193,6 @@ export const loadFilesFromHttpStorage = async (
       }
     }),
   );
-  //////
 
   return { loadedFiles, erroredFiles };
 };
@@ -237,58 +203,19 @@ const saveElementsToBackend = async (
   elements: SyncableExcalidrawElement[],
   sceneVersion: number,
 ) => {
-  //  const { ciphertext, iv } = await encryptElements(roomKey, elements);
-
-  // Concatenate Scene Version, IV with encrypted data (IV does not have to be secret).
-  /*   const numberBuffer = new ArrayBuffer(4);
-  const numberView = new DataView(numberBuffer);
-  numberView.setUint32(0, sceneVersion, false);
-  const sceneVersionBuffer = numberView.buffer;
-  const payloadBlob = await new Response(
-    new Blob([sceneVersionBuffer, iv.buffer, ciphertext]),
-  ).arrayBuffer(); */
-  const payloadBlob = JSON.stringify({
+  const payload = {
     sceneVersion: sceneVersion,
     elements: elements,
-  });
-  console.log("save", payloadBlob);
+  };
   const putResponse = await fetch(
     `${HTTP_STORAGE_BACKEND_URL}/rooms/${roomId}`,
     {
-      method: "PUT",
-      body: payloadBlob,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
     },
   );
-
   return putResponse.ok;
 };
-
-/* const parseSceneVersionFromRequest = (buffer: ArrayBuffer) => {
-  const view = new DataView(buffer);
-  return view.getUint32(0, false);
-}; */
-
-/* const decryptElements = async (
-  data: StoredScene,
-  roomKey: string,
-): Promise<readonly ExcalidrawElement[]> => {
-  const ciphertext = data.ciphertext;
-  const iv = data.iv;
-
-  const decrypted = await decryptData(iv, ciphertext, roomKey);
-  const decodedData = new TextDecoder("utf-8").decode(
-    new Uint8Array(decrypted),
-  );
-  return JSON.parse(decodedData);
-}; */
-
-/* const encryptElements = async (
-  key: string,
-  elements: readonly ExcalidrawElement[],
-): Promise<{ ciphertext: ArrayBuffer; iv: Uint8Array }> => {
-  const json = JSON.stringify(elements);
-  const encoded = new TextEncoder().encode(json);
-  const { encryptedBuffer, iv } = await encryptData(key, encoded);
-
-  return { ciphertext: encryptedBuffer, iv };
-}; */
