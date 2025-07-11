@@ -520,10 +520,14 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     this.fallbackInitializationHandler = fallbackInitializationHandler;
 
     try {
+      const query: any = {};
+      if (import.meta.env.VITE_APP_WS_SERVER_TENANT) {
+        query.tenant = import.meta.env.VITE_APP_WS_SERVER_TENANT;
+      }
       this.portal.socket = this.portal.open(
         socketIOClient(import.meta.env.VITE_APP_WS_SERVER_URL, {
           transports: ["websocket", "polling"],
-          path: `${location.pathname}socket.io`,  // qrtnz
+          query,
         }),
         roomId,
         roomKey,
