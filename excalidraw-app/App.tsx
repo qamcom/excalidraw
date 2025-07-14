@@ -226,6 +226,7 @@ const initializeScene = async (opts: {
   } = await loadScene(null, null, localDataState);
 
   let roomLinkData = getCollaborationLinkData(window.location.href);
+  console.log('roomLinkData', roomLinkData);
   const isExternalScene = !!(id || jsonBackendMatch || roomLinkData);
   if (isExternalScene) {
     if (

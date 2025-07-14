@@ -18,9 +18,11 @@ import {
 import Portal from "../collab/Portal";
 import { reconcileElements } from "@excalidraw/excalidraw";
 import type { Socket } from "socket.io-client";
+import { getTenantIdFromRoomId } from "excalidraw-app/collab/TenantId";
 
 const HTTP_STORAGE_BACKEND_URL = import.meta.env
   .VITE_APP_HTTP_STORAGE_BACKEND_URL;
+const HTTP_URL_PREFIX = "api/excalidraw/";
 
 const httpStorageSceneVersionCache = new WeakMap<Socket, number>();
 
@@ -55,9 +57,14 @@ export const saveToHttpStorage = async (
     return null;
   }
 
+  const tenantId = getTenantIdFromRoomId(roomId);
+  if (!tenantId) {
+    return null;
+  }
+
   const sceneVersion = getSceneVersion(elements);
   const getResponse = await fetch(
-    `${HTTP_STORAGE_BACKEND_URL}/rooms/${roomId}`,
+    `${HTTP_STORAGE_BACKEND_URL}/${tenantId}/${HTTP_URL_PREFIX}rooms/${roomId}`,
   );
 
   if (!getResponse.ok && getResponse.status !== 404) {
@@ -67,6 +74,7 @@ export const saveToHttpStorage = async (
     const result: boolean = await saveElementsToBackend(
       roomKey,
       roomId,
+      tenantId,
       [...elements],
       sceneVersion,
     );
@@ -91,6 +99,7 @@ export const saveToHttpStorage = async (
   const result: boolean = await saveElementsToBackend(
     roomKey,
     roomId,
+    tenantId,
     reconciledElements,
     sceneVersion,
   );
@@ -107,8 +116,13 @@ export const loadFromHttpStorage = async (
   roomKey: string,
   socket: Socket | null,
 ): Promise<readonly SyncableExcalidrawElement[] | null> => {
+  console.log("loadFromHTTPStorage", roomId);
+  const tenantId = getTenantIdFromRoomId(roomId);
+  if (!tenantId) {
+    return null;
+  }
   const getResponse = await fetch(
-    `${HTTP_STORAGE_BACKEND_URL}/rooms/${roomId}`,
+    `${HTTP_STORAGE_BACKEND_URL}/${tenantId}/${HTTP_URL_PREFIX}rooms/${roomId}`,
   );
   if (!getResponse.ok || getResponse.status === 404) {
     return null;
@@ -131,19 +145,23 @@ export const saveFilesToHttpStorage = async ({
 }) => {
   const erroredFiles: FileId[] = [];
   const savedFiles: FileId[] = [];
+  const tenantId = "unknown";
 
   await Promise.all(
     files.map(async ({ id, buffer }) => {
       try {
         const payloadBlob = new Blob([buffer]);
         const payload = await new Response(payloadBlob).arrayBuffer();
-        await fetch(`${HTTP_STORAGE_BACKEND_URL}/files/${id}`, {
-          method: "POST",
-          /*           headers: {
+        await fetch(
+          `${HTTP_STORAGE_BACKEND_URL}/${tenantId}/${HTTP_URL_PREFIX}files/${id}`,
+          {
+            method: "POST",
+            /*           headers: {
             "Content-Type": "application/json", // TODO
           }, */
-          body: payload,
-        });
+            body: payload,
+          },
+        );
         savedFiles.push(id);
       } catch (error: any) {
         erroredFiles.push(id);
@@ -162,10 +180,17 @@ export const loadFilesFromHttpStorage = async (
   const loadedFiles: BinaryFileData[] = [];
   const erroredFiles = new Map<FileId, true>();
 
+  const tenantId = "unknown"; /* getTenantIdFromRoomId(roomId);
+  if (!tenantId) {
+    return null;
+  }  */
+
   await Promise.all(
     [...new Set(filesIds)].map(async (id) => {
       try {
-        const response = await fetch(`${HTTP_STORAGE_BACKEND_URL}/files/${id}`);
+        const response = await fetch(
+          `${HTTP_STORAGE_BACKEND_URL}/${tenantId}/${HTTP_URL_PREFIX}files/${id}`,
+        );
         if (response.status < 400) {
           const arrayBuffer = await response.arrayBuffer();
 
@@ -200,6 +225,7 @@ export const loadFilesFromHttpStorage = async (
 const saveElementsToBackend = async (
   roomKey: string,
   roomId: string,
+  tenantId: string,
   elements: SyncableExcalidrawElement[],
   sceneVersion: number,
 ) => {
@@ -208,7 +234,7 @@ const saveElementsToBackend = async (
     elements: elements,
   };
   const putResponse = await fetch(
-    `${HTTP_STORAGE_BACKEND_URL}/rooms/${roomId}`,
+    `${HTTP_STORAGE_BACKEND_URL}/${tenantId}/${HTTP_URL_PREFIX}rooms/${roomId}`,
     {
       method: "POST",
       headers: {

@@ -93,6 +93,7 @@ import type {
 } from "../data";
 
 import { getStorageBackend, storageBackend } from "../data/config";
+import { getTenantIdFromRoomId } from "./TenantId";
 
 export const collabAPIAtom = atom<CollabAPI | null>(null);
 export const isCollaboratingAtom = atom(false);
@@ -521,9 +522,9 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
     try {
       const query: any = {};
-      if (import.meta.env.VITE_APP_WS_SERVER_TENANT) {
-        query.tenant = import.meta.env.VITE_APP_WS_SERVER_TENANT;
-      }
+      let tenantId = getTenantIdFromRoomId(roomId);
+      query.tenant = tenantId;
+      console.log('tenantID is', tenantId);
       this.portal.socket = this.portal.open(
         socketIOClient(import.meta.env.VITE_APP_WS_SERVER_URL, {
           transports: ["websocket", "polling"],
