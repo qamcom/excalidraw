@@ -44,6 +44,8 @@ interface ImportMetaEnv {
 
   DEV: string;
   PROD: string;
+
+  VITE_APP_ALLOW_SELF_EMBEDDING: string;
 }
 
 interface ImportMeta {

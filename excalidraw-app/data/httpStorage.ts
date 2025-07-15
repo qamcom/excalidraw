@@ -10,7 +10,7 @@ import { decompressData } from "@excalidraw/excalidraw/data/encode";
 
 import { reconcileElements } from "@excalidraw/excalidraw";
 
-import { getTenantIdFromRoomId } from "excalidraw-app/collab/TenantId";
+import { getTenantFromURLPathname } from "excalidraw-app/collab/TenantId";
 
 import type {
   AppState,
@@ -64,7 +64,7 @@ export const saveToHttpStorage = async (
     return null;
   }
 
-  const tenantId = getTenantIdFromRoomId(roomId);
+  const tenantId = getTenantFromURLPathname();
   if (!tenantId) {
     return null;
   }
@@ -124,7 +124,7 @@ export const loadFromHttpStorage = async (
   socket: Socket | null,
 ): Promise<readonly SyncableExcalidrawElement[] | null> => {
   console.log("loadFromHTTPStorage", roomId);
-  const tenantId = getTenantIdFromRoomId(roomId);
+  const tenantId = getTenantFromURLPathname();
   if (!tenantId) {
     return null;
   }

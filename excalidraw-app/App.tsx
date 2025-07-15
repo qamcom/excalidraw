@@ -179,7 +179,10 @@ window.addEventListener(
 
 let isSelfEmbedding = false;
 
-if (window.self !== window.top) {
+if (
+  import.meta.env.VITE_APP_ALLOW_SELF_EMBEDDING !== "true" &&
+  window.self !== window.top
+) {
   try {
     const parentUrl = new URL(document.referrer);
     const currentUrl = new URL(window.location.href);

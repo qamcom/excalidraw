@@ -92,8 +92,8 @@ import type {
   SyncableExcalidrawElement,
 } from "../data";
 
-import { getStorageBackend, storageBackend } from "../data/config";
-import { getTenantIdFromRoomId } from "./TenantId";
+import { getStorageBackend } from "../data/config";
+import { getTenantFromURLPathname } from "./TenantId";
 
 export const collabAPIAtom = atom<CollabAPI | null>(null);
 export const isCollaboratingAtom = atom(false);
@@ -522,7 +522,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
     try {
       const query: any = {};
-      let tenantId = getTenantIdFromRoomId(roomId);
+      const tenantId = getTenantFromURLPathname();
       query.tenant = tenantId;
       console.log('tenantID is', tenantId);
       this.portal.socket = this.portal.open(
