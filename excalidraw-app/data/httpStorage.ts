@@ -1,24 +1,31 @@
 // Inspired and partly copied from https://gitlab.com/kiliandeca/excalidraw-fork
 // MIT, Kilian Decaderincourt
 
-import { getSyncableElements, SyncableExcalidrawElement } from ".";
 import {
   MIME_TYPES,
-  getSceneVersion,
+  hashElementsVersion,
   restoreElements,
 } from "@excalidraw/excalidraw";
 import { decompressData } from "@excalidraw/excalidraw/data/encode";
-import { ExcalidrawElement, FileId } from "@excalidraw/element/types";
-import {
+
+import { reconcileElements } from "@excalidraw/excalidraw";
+
+import { getTenantIdFromRoomId } from "excalidraw-app/collab/TenantId";
+
+import type {
   AppState,
   BinaryFileData,
   BinaryFileMetadata,
   DataURL,
 } from "@excalidraw/excalidraw/types";
-import Portal from "../collab/Portal";
-import { reconcileElements } from "@excalidraw/excalidraw";
+import type { ExcalidrawElement, FileId } from "@excalidraw/element/types";
+
+import { getSyncableElements } from ".";
+
 import type { Socket } from "socket.io-client";
-import { getTenantIdFromRoomId } from "excalidraw-app/collab/TenantId";
+import type Portal from "../collab/Portal";
+
+import type { SyncableExcalidrawElement } from ".";
 
 const HTTP_STORAGE_BACKEND_URL = import.meta.env
   .VITE_APP_HTTP_STORAGE_BACKEND_URL;
@@ -31,7 +38,7 @@ export const isSavedToHttpStorage = (
   elements: readonly ExcalidrawElement[],
 ): boolean => {
   if (portal.socket && portal.roomId && portal.roomKey) {
-    const sceneVersion = getSceneVersion(elements);
+    const sceneVersion = hashElementsVersion(elements);
 
     return httpStorageSceneVersionCache.get(portal.socket) === sceneVersion;
   }
@@ -62,7 +69,7 @@ export const saveToHttpStorage = async (
     return null;
   }
 
-  const sceneVersion = getSceneVersion(elements);
+  const sceneVersion = hashElementsVersion(elements);
   const getResponse = await fetch(
     `${HTTP_STORAGE_BACKEND_URL}/${tenantId}/${HTTP_URL_PREFIX}rooms/${roomId}`,
   );
@@ -131,7 +138,7 @@ export const loadFromHttpStorage = async (
   const elements = response.elements;
 
   if (socket) {
-    httpStorageSceneVersionCache.set(socket, getSceneVersion(elements));
+    httpStorageSceneVersionCache.set(socket, hashElementsVersion(elements));
   }
   return getSyncableElements(restoreElements(elements, null));
 };
@@ -230,8 +237,8 @@ const saveElementsToBackend = async (
   sceneVersion: number,
 ) => {
   const payload = {
-    sceneVersion: sceneVersion,
-    elements: elements,
+    sceneVersion,
+    elements,
   };
   const putResponse = await fetch(
     `${HTTP_STORAGE_BACKEND_URL}/${tenantId}/${HTTP_URL_PREFIX}rooms/${roomId}`,
