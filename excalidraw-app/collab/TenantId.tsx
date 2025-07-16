@@ -1,6 +1,8 @@
 const RE_TENANT = /^([a-zA-Z0-9-]+)_([a-zA-Z0-9-]+)$/;
 
-const RE_TENANT_IN_PATHNAME = /\/(\w+)\/excalidraw/;
+//const RE_TENANT_IN_PATHNAME = /\/(\w+)\/excalidraw/;
+const RE_TENANT_IN_PATHNAME = /^\/([a-zA-Z0-9-]+)\/excalidraw\/$/;
+
 
 let defaultTenantId: string | null = null;
 if (!import.meta.env.VITE_APP_WS_SERVER_TENANT) {

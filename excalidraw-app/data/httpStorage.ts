@@ -5,6 +5,7 @@ import {
   MIME_TYPES,
   hashElementsVersion,
   restoreElements,
+  serializeAsJSON,
 } from "@excalidraw/excalidraw";
 import { decompressData } from "@excalidraw/excalidraw/data/encode";
 
@@ -13,12 +14,18 @@ import { reconcileElements } from "@excalidraw/excalidraw";
 import { getTenantFromURLPathname } from "excalidraw-app/collab/TenantId";
 
 import type {
+  AppClassProperties,
   AppState,
   BinaryFileData,
   BinaryFileMetadata,
+  BinaryFiles,
   DataURL,
 } from "@excalidraw/excalidraw/types";
-import type { ExcalidrawElement, FileId } from "@excalidraw/element/types";
+import type {
+  ExcalidrawElement,
+  FileId,
+  NonDeletedExcalidrawElement,
+} from "@excalidraw/element/types";
 
 import { getSyncableElements } from ".";
 
@@ -26,12 +33,58 @@ import type { Socket } from "socket.io-client";
 import type Portal from "../collab/Portal";
 
 import type { SyncableExcalidrawElement } from ".";
+import { canvasToBlob } from "@excalidraw/excalidraw/data/blob";
+
+import { exportToCanvas } from "@excalidraw/excalidraw/scene/export";
+import { DEFAULT_EXPORT_PADDING } from "@excalidraw/common";
+import { prepareElementsForExport } from "@excalidraw/excalidraw/data";
 
 const HTTP_STORAGE_BACKEND_URL = import.meta.env
   .VITE_APP_HTTP_STORAGE_BACKEND_URL;
 const HTTP_URL_PREFIX = "api/excalidraw/";
 
 const httpStorageSceneVersionCache = new WeakMap<Socket, number>();
+
+export const exportAsPng = async (
+  elements: readonly NonDeletedExcalidrawElement[],
+  appState: AppState,
+  files: BinaryFiles,
+) => {
+  const { exportedElements, exportingFrame } = prepareElementsForExport(
+    elements,
+    appState,
+    false,
+  );
+
+  const tempCanvas = exportToCanvas(exportedElements, appState, files, {
+    exportBackground: false,
+    viewBackgroundColor: appState.viewBackgroundColor,
+    exportPadding: DEFAULT_EXPORT_PADDING,
+    exportingFrame,
+  });
+
+  return canvasToBlob(tempCanvas);
+};
+
+export const saveRoomPreviewToHttpStorage = async (
+  tenantId: string,
+  roomId: string,
+  blob: Blob,
+) => {
+  try {
+    //const payload = await new Response(blob).arrayBuffer();
+    await fetch(
+      `${HTTP_STORAGE_BACKEND_URL}/${tenantId}/${HTTP_URL_PREFIX}room-preview/${roomId}.png`,
+      {
+        method: "POST",
+        /*           headers: {
+      "Content-Type": "application/json", // TODO
+    }, */
+        body: blob,
+      },
+    );
+  } catch (error: any) {}
+};
 
 export const isSavedToHttpStorage = (
   portal: Portal,
@@ -87,7 +140,13 @@ export const saveToHttpStorage = async (
     );
     if (result) {
       httpStorageSceneVersionCache.set(socket, sceneVersion);
-      return getSyncableElements(restoreElements(elements, null));
+      const syncableElements = getSyncableElements(
+        restoreElements(elements, null),
+      );
+      const files: BinaryFiles = {};
+      const blob = await exportAsPng(syncableElements, appState, files);
+      saveRoomPreviewToHttpStorage(tenantId, roomId, blob);
+      return syncableElements;
     }
     return null;
   }
@@ -95,7 +154,7 @@ export const saveToHttpStorage = async (
   // if we're up to date before saving our scene
   const buffer = await getResponse.json();
   const sceneVersionFromRequest = buffer.sceneVersion;
-  if (sceneVersionFromRequest >= sceneVersion) {
+  if (sceneVersionFromRequest === sceneVersion) {
     return null;
   }
   const existingElements = buffer.elements;
@@ -113,6 +172,9 @@ export const saveToHttpStorage = async (
 
   if (result) {
     httpStorageSceneVersionCache.set(socket, sceneVersion);
+    const files: BinaryFiles = {};
+    const blob = await exportAsPng(reconciledElements, appState, files);
+    saveRoomPreviewToHttpStorage(tenantId, roomId, blob);
     return reconciledElements;
   }
   return null;
@@ -123,7 +185,6 @@ export const loadFromHttpStorage = async (
   roomKey: string,
   socket: Socket | null,
 ): Promise<readonly SyncableExcalidrawElement[] | null> => {
-  console.log("loadFromHTTPStorage", roomId);
   const tenantId = getTenantFromURLPathname();
   if (!tenantId) {
     return null;
