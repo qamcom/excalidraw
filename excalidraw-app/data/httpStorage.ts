@@ -57,7 +57,7 @@ export const exportAsPng = async (
   );
 
   const tempCanvas = exportToCanvas(exportedElements, appState, files, {
-    exportBackground: false,
+    exportBackground: true,
     viewBackgroundColor: appState.viewBackgroundColor,
     exportPadding: DEFAULT_EXPORT_PADDING,
     exportingFrame,
