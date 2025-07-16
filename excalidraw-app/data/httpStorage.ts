@@ -73,14 +73,14 @@ export const saveRoomPreviewToHttpStorage = async (
 ) => {
   try {
     //const payload = await new Response(blob).arrayBuffer();
+    let payload = new FormData();
+    payload.append("file", blob);
+
     await fetch(
-      `${HTTP_STORAGE_BACKEND_URL}/${tenantId}/${HTTP_URL_PREFIX}room-preview/${roomId}.png`,
+      `${HTTP_STORAGE_BACKEND_URL}/${tenantId}/${HTTP_URL_PREFIX}rooms/preview/${roomId}.png`,
       {
         method: "POST",
-        /*           headers: {
-      "Content-Type": "application/json", // TODO
-    }, */
-        body: blob,
+        body: payload,
       },
     );
   } catch (error: any) {}
@@ -124,7 +124,7 @@ export const saveToHttpStorage = async (
 
   const sceneVersion = hashElementsVersion(elements);
   const getResponse = await fetch(
-    `${HTTP_STORAGE_BACKEND_URL}/${tenantId}/${HTTP_URL_PREFIX}rooms/${roomId}`,
+    `${HTTP_STORAGE_BACKEND_URL}/${tenantId}/${HTTP_URL_PREFIX}rooms/room/${roomId}`,
   );
 
   if (!getResponse.ok && getResponse.status !== 404) {
@@ -190,7 +190,7 @@ export const loadFromHttpStorage = async (
     return null;
   }
   const getResponse = await fetch(
-    `${HTTP_STORAGE_BACKEND_URL}/${tenantId}/${HTTP_URL_PREFIX}rooms/${roomId}`,
+    `${HTTP_STORAGE_BACKEND_URL}/${tenantId}/${HTTP_URL_PREFIX}rooms/room/${roomId}`,
   );
   if (!getResponse.ok || getResponse.status === 404) {
     return null;
@@ -302,7 +302,7 @@ const saveElementsToBackend = async (
     elements,
   };
   const putResponse = await fetch(
-    `${HTTP_STORAGE_BACKEND_URL}/${tenantId}/${HTTP_URL_PREFIX}rooms/${roomId}`,
+    `${HTTP_STORAGE_BACKEND_URL}/${tenantId}/${HTTP_URL_PREFIX}rooms/room/${roomId}`,
     {
       method: "POST",
       headers: {
