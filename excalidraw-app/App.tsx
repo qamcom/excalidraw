@@ -340,7 +340,7 @@ const initializeScene = async (opts: {
 
 const ExcalidrawWrapper = () => {
   const [errorMessage, setErrorMessage] = useState("");
-  const isCollabDisabled = isRunningInIframe();
+  const isCollabDisabled = isRunningInIframe() ? import.meta.env.VITE_APP_ALLOW_COLLAB_INSIDE_IFRAME !== "true" : false;
 
   const { editorTheme, appTheme, setAppTheme } = useHandleAppTheme();
 

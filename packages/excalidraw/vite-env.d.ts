@@ -55,6 +55,7 @@ interface ImportMetaEnv {
   PROD: string;
 
   VITE_APP_ALLOW_SELF_EMBEDDING: string;
+  VITE_APP_ALLOW_COLLAB_INSIDE_IFRAME: string;
 }
 
 interface ImportMeta {
