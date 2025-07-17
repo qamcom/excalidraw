@@ -77,7 +77,7 @@ export const saveRoomPreviewToHttpStorage = async (
     payload.append("file", blob);
 
     await fetch(
-      `${HTTP_STORAGE_BACKEND_URL}/${tenantId}/${HTTP_URL_PREFIX}rooms/preview/${roomId}.png`,
+      `${HTTP_STORAGE_BACKEND_URL}/${tenantId}/${HTTP_URL_PREFIX}rooms/preview/${roomId}`,
       {
         method: "POST",
         body: payload,
