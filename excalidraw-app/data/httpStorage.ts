@@ -73,7 +73,7 @@ export const saveRoomPreviewToHttpStorage = async (
 ) => {
   try {
     //const payload = await new Response(blob).arrayBuffer();
-    let payload = new FormData();
+    const payload = new FormData();
     payload.append("file", blob);
 
     await fetch(
