@@ -1,6 +1,6 @@
 const RE_TENANT = /^([a-zA-Z0-9-]+)_([a-zA-Z0-9-]+)$/;
 
-const RE_TENANT_IN_PATHNAME = /^\/([^\/]+)/;
+const RE_TENANT_IN_PATHNAME = /^\/([^/]+)/;
 
 let defaultTenantId: string | null = null;
 if (!import.meta.env.VITE_APP_WS_SERVER_TENANT) {

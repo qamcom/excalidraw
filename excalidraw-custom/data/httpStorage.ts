@@ -5,7 +5,6 @@ import {
   MIME_TYPES,
   hashElementsVersion,
   restoreElements,
-  serializeAsJSON,
 } from "@excalidraw/excalidraw";
 import { decompressData } from "@excalidraw/excalidraw/data/encode";
 
@@ -13,8 +12,15 @@ import { reconcileElements } from "@excalidraw/excalidraw";
 
 import { getTenantFromURLPathname } from "excalidraw-app/collab/TenantId";
 
+import { prepareElementsForExport } from "@excalidraw/excalidraw/data";
+
+import { DEFAULT_EXPORT_PADDING } from "@excalidraw/common";
+
+import { exportToCanvas } from "@excalidraw/excalidraw/scene/export";
+
+import { canvasToBlob } from "@excalidraw/excalidraw/data/blob";
+
 import type {
-  AppClassProperties,
   AppState,
   BinaryFileData,
   BinaryFileMetadata,
@@ -33,11 +39,6 @@ import type { Socket } from "socket.io-client";
 import type Portal from "../collab/Portal";
 
 import type { SyncableExcalidrawElement } from ".";
-import { canvasToBlob } from "@excalidraw/excalidraw/data/blob";
-
-import { exportToCanvas } from "@excalidraw/excalidraw/scene/export";
-import { DEFAULT_EXPORT_PADDING } from "@excalidraw/common";
-import { prepareElementsForExport } from "@excalidraw/excalidraw/data";
 
 const HTTP_STORAGE_BACKEND_URL = import.meta.env
   .VITE_APP_HTTP_STORAGE_BACKEND_URL;

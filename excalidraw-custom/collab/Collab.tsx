@@ -60,29 +60,36 @@ import {
   SYNC_FULL_SCENE_INTERVAL_MS,
   WS_EVENTS,
 } from "../app_constants";
-import {
-  generateCollaborationLinkData,
-  getCollaborationLink,
-  getSyncableElements,
-} from "../data";
+
 import {
   encodeFilesForUpload,
   FileManager,
   updateStaleImageStatuses,
 } from "../data/FileManager";
 import { LocalData } from "../data/LocalData";
-import {
+/* import {
   isSavedToFirebase,
   loadFilesFromFirebase,
   loadFromFirebase,
   saveFilesToFirebase,
   saveToFirebase,
-} from "../data/firebase";
+} from "../data/firebase"; */
 import {
   importUsernameFromLocalStorage,
   saveUsernameToLocalStorage,
 } from "../data/localStorage";
+
 import { resetBrowserStateVersions } from "../data/tabSync";
+
+import { getStorageBackend } from "../data/config";
+
+import {
+  generateCollaborationLinkData,
+  getCollaborationLink,
+  getSyncableElements,
+} from "../data";
+
+import { getTenantFromURLPathname } from "./TenantId";
 
 import { collabErrorIndicatorAtom } from "./CollabError";
 import Portal from "./Portal";
@@ -91,9 +98,6 @@ import type {
   SocketUpdateDataSource,
   SyncableExcalidrawElement,
 } from "../data";
-
-import { getStorageBackend } from "../data/config";
-import { getTenantFromURLPathname } from "./TenantId";
 
 export const collabAPIAtom = atom<CollabAPI | null>(null);
 export const isCollaboratingAtom = atom(false);
@@ -157,7 +161,11 @@ class Collab extends PureComponent<CollabProps, CollabState> {
         }
 
         const storageBackend = await getStorageBackend();
-        return storageBackend.loadFilesFromStorageBackend(`files/rooms/${roomId}`, roomKey, fileIds);
+        return storageBackend.loadFilesFromStorageBackend(
+          `files/rooms/${roomId}`,
+          roomKey,
+          fileIds,
+        );
       },
       saveFiles: async ({ addedFiles }) => {
         const { roomId, roomKey } = this.portal;
@@ -166,14 +174,15 @@ class Collab extends PureComponent<CollabProps, CollabState> {
         }
 
         const storageBackend = await getStorageBackend();
-        const { savedFiles, erroredFiles } = await  storageBackend.saveFilesToStorageBackend({
-          prefix: `${FIREBASE_STORAGE_PREFIXES.collabFiles}/${roomId}`,
-          files: await encodeFilesForUpload({
-            files: addedFiles,
-            encryptionKey: roomKey,
-            maxBytes: FILE_UPLOAD_MAX_BYTES,
-          }),
-        });
+        const { savedFiles, erroredFiles } =
+          await storageBackend.saveFilesToStorageBackend({
+            prefix: `${FIREBASE_STORAGE_PREFIXES.collabFiles}/${roomId}`,
+            files: await encodeFilesForUpload({
+              files: addedFiles,
+              encryptionKey: roomKey,
+              maxBytes: FILE_UPLOAD_MAX_BYTES,
+            }),
+          });
 
         return {
           savedFiles: savedFiles.reduce(
@@ -296,8 +305,8 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
     if (
       this.isCollaborating() &&
-      (this.fileManager.shouldPreventUnload(syncableElements) ||
-        !isSavedToFirebase(this.portal, syncableElements))
+      this.fileManager.shouldPreventUnload(syncableElements) /* || */
+      /*       !isSavedToFirebase(this.portal, syncableElements)) */
     ) {
       // this won't run in time if user decides to leave the site, but
       //  the purpose is to run in immediately after user decides to stay

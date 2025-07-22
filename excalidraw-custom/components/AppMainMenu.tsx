@@ -1,6 +1,4 @@
-import {
-  ExcalLogo,
-} from "@excalidraw/excalidraw/components/icons";
+import { ExcalLogo } from "@excalidraw/excalidraw/components/icons";
 import { MainMenu } from "@excalidraw/excalidraw/index";
 import React from "react";
 

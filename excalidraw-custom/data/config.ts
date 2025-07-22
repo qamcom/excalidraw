@@ -5,6 +5,7 @@ import {
   saveFilesToFirebase,
   saveToFirebase,
 } from "./firebase";
+
 import {
   isSavedToHttpStorage,
   loadFilesFromHttpStorage,
@@ -12,7 +13,8 @@ import {
   saveFilesToHttpStorage,
   saveToHttpStorage,
 } from "./httpStorage";
-import { StorageBackend } from "./StorageBackend";
+
+import type { StorageBackend } from "./StorageBackend";
 
 const firebaseStorage: StorageBackend = {
   isSaved: isSavedToFirebase,
