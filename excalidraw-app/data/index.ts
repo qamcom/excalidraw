@@ -205,7 +205,6 @@ const importFromBackend = async (
   decryptionKey: string,
 ): Promise<ImportedDataState> => {
   try {
-    // CHRIS: this should really be in the storage backend
     const response = await fetch(`${BACKEND_V2_GET}${id}`);
 
     if (!response.ok) {

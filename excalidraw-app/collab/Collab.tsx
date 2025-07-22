@@ -92,9 +92,6 @@ import type {
   SyncableExcalidrawElement,
 } from "../data";
 
-import { getStorageBackend } from "../data/config";
-import { getTenantFromURLPathname } from "./TenantId";
-
 export const collabAPIAtom = atom<CollabAPI | null>(null);
 export const isCollaboratingAtom = atom(false);
 export const isOfflineAtom = atom(false);
@@ -156,8 +153,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
           throw new AbortError();
         }
 
-        const storageBackend = await getStorageBackend();
-        return storageBackend.loadFilesFromStorageBackend(`files/rooms/${roomId}`, roomKey, fileIds);
+        return loadFilesFromFirebase(`files/rooms/${roomId}`, roomKey, fileIds);
       },
       saveFiles: async ({ addedFiles }) => {
         const { roomId, roomKey } = this.portal;
@@ -165,8 +161,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
           throw new AbortError();
         }
 
-        const storageBackend = await getStorageBackend();
-        const { savedFiles, erroredFiles } = await  storageBackend.saveFilesToStorageBackend({
+        const { savedFiles, erroredFiles } = await saveFilesToFirebase({
           prefix: `${FIREBASE_STORAGE_PREFIXES.collabFiles}/${roomId}`,
           files: await encodeFilesForUpload({
             files: addedFiles,
@@ -317,8 +312,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     syncableElements: readonly SyncableExcalidrawElement[],
   ) => {
     try {
-      const storageBackend = await getStorageBackend();
-      const storedElements = await storageBackend.saveToStorageBackend(
+      const storedElements = await saveToFirebase(
         this.portal,
         syncableElements,
         this.excalidrawAPI.getAppState(),
@@ -521,14 +515,9 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     this.fallbackInitializationHandler = fallbackInitializationHandler;
 
     try {
-      const query: any = {};
-      const tenantId = getTenantFromURLPathname();
-      query.tenant = tenantId;
       this.portal.socket = this.portal.open(
         socketIOClient(import.meta.env.VITE_APP_WS_SERVER_URL, {
           transports: ["websocket", "polling"],
-          path: tenantId ? `/${tenantId}/socket.io/` : undefined,
-          query,
         }),
         roomId,
         roomKey,
@@ -722,8 +711,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       this.excalidrawAPI.resetScene();
 
       try {
-        const storageBackend = await getStorageBackend();
-        const elements = await storageBackend.loadFromStorageBackend(
+        const elements = await loadFromFirebase(
           roomLinkData.roomId,
           roomLinkData.roomKey,
           this.portal.socket,

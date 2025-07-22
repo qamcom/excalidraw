@@ -11,12 +11,7 @@ import type {
   SocketId,
 } from "@excalidraw/excalidraw/types";
 
-import {
-  WS_EVENTS,
-  FILE_UPLOAD_TIMEOUT,
-  WS_SUBTYPES,
-  WS_EVENT_PREFIX,
-} from "../app_constants";
+import { WS_EVENTS, FILE_UPLOAD_TIMEOUT, WS_SUBTYPES } from "../app_constants";
 import { isSyncableElement } from "../data";
 
 import type {
@@ -47,7 +42,7 @@ class Portal {
     // Initialize socket listeners
     this.socket.on("init-room", () => {
       if (this.socket) {
-        this.socket.emit(`${WS_EVENT_PREFIX}join-room`, this.roomId);
+        this.socket.emit("join-room", this.roomId);
         trackEvent("share", "room joined");
       }
     });
@@ -96,12 +91,9 @@ class Portal {
       const json = JSON.stringify(data);
       const encoded = new TextEncoder().encode(json);
       const { encryptedBuffer, iv } = await encryptData(this.roomKey!, encoded);
-      const serverBroadcast = volatile
-        ? WS_EVENTS.SERVER_VOLATILE
-        : WS_EVENTS.SERVER;
 
       this.socket?.emit(
-        `${WS_EVENT_PREFIX}${serverBroadcast}`,
+        volatile ? WS_EVENTS.SERVER_VOLATILE : WS_EVENTS.SERVER,
         roomId ?? this.roomId,
         encryptedBuffer,
         iv,
@@ -257,10 +249,7 @@ class Portal {
 
   broadcastUserFollowed = (payload: OnUserFollowedPayload) => {
     if (this.socket?.id) {
-      this.socket.emit(
-        `${WS_EVENT_PREFIX}${WS_EVENTS.USER_FOLLOW_CHANGE}`,
-        payload,
-      );
+      this.socket.emit(WS_EVENTS.USER_FOLLOW_CHANGE, payload);
     }
   };
 }

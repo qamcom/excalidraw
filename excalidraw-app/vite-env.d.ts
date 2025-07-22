@@ -10,8 +10,6 @@ interface ImportMetaEnv {
 
   // collaboration WebSocket server (https: string
   VITE_APP_WS_SERVER_URL: string;
-  VITE_APP_WS_SERVER_TENANT: string;
-  VITE_APP_WS_EVENT_PREFIX: string;
 
   // set this only if using the collaboration workflow we use on excalidraw.com
   VITE_APP_PORTAL_URL: string;
@@ -44,9 +42,6 @@ interface ImportMetaEnv {
 
   DEV: string;
   PROD: string;
-
-  VITE_APP_ALLOW_SELF_EMBEDDING: string;
-  VITE_APP_ALLOW_COLLAB_INSIDE_IFRAME: string;
 }
 
 interface ImportMeta {

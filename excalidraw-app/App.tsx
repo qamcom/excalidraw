@@ -139,8 +139,6 @@ import "./index.scss";
 
 import type { CollabAPI } from "./collab/Collab";
 
-import { storageBackend, getStorageBackend } from "./data/config";
-
 polyfill();
 
 window.EXCALIDRAW_THROTTLE_RENDER = true;
@@ -179,10 +177,7 @@ window.addEventListener(
 
 let isSelfEmbedding = false;
 
-if (
-  import.meta.env.VITE_APP_ALLOW_SELF_EMBEDDING !== "true" &&
-  window.self !== window.top
-) {
+if (window.self !== window.top) {
   try {
     const parentUrl = new URL(document.referrer);
     const currentUrl = new URL(window.location.href);
@@ -224,6 +219,7 @@ const initializeScene = async (opts: {
   const externalUrlMatch = window.location.hash.match(/^#url=(.*)$/);
 
   const localDataState = importFromLocalStorage();
+
   let scene: RestoredDataState & {
     scrollToContent?: boolean;
   } = await loadScene(null, null, localDataState);
@@ -340,7 +336,7 @@ const initializeScene = async (opts: {
 
 const ExcalidrawWrapper = () => {
   const [errorMessage, setErrorMessage] = useState("");
-  const isCollabDisabled = isRunningInIframe() ? import.meta.env.VITE_APP_ALLOW_COLLAB_INSIDE_IFRAME !== "true" : false;
+  const isCollabDisabled = isRunningInIframe();
 
   const { editorTheme, appTheme, setAppTheme } = useHandleAppTheme();
 
@@ -439,8 +435,7 @@ const ExcalidrawWrapper = () => {
           }, [] as FileId[]) || [];
 
         if (data.isExternalScene) {
-          storageBackend
-          ?.loadFilesFromStorageBackend(
+          loadFilesFromFirebase(
             `${FIREBASE_STORAGE_PREFIXES.shareLinkFiles}/${data.id}`,
             data.key,
             fileIds,
@@ -475,7 +470,6 @@ const ExcalidrawWrapper = () => {
     };
 
     initializeScene({ collabAPI, excalidrawAPI }).then(async (data) => {
-      await getStorageBackend();
       loadImages(data, /* isInitialLoad */ true);
       initialStatePromiseRef.current.promise.resolve(data.scene);
     });
