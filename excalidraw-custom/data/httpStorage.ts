@@ -6,7 +6,7 @@ import {
   hashElementsVersion,
   restoreElements,
 } from "@excalidraw/excalidraw";
-import { decompressData } from "@excalidraw/excalidraw/data/encode";
+//import { decompressData } from "@excalidraw/excalidraw/data/encode";
 
 import { reconcileElements } from "@excalidraw/excalidraw";
 
@@ -25,7 +25,7 @@ import { t } from "@excalidraw/excalidraw/i18n";
 import type {
   AppState,
   BinaryFileData,
-  BinaryFileMetadata,
+  //BinaryFileMetadata,
   BinaryFiles,
   DataURL,
 } from "@excalidraw/excalidraw/types";
@@ -148,7 +148,7 @@ export const saveToHttpStorage = async (
       const syncableElements = getSyncableElements(
         restoreElements(elements, null),
       );
-      const files: BinaryFiles = {};
+      const files = portal.collab.excalidrawAPI.getFiles();
       const blob = await exportAsPng(syncableElements, appState, files);
       saveRoomPreviewToHttpStorage(tenantId, roomId, blob);
       return syncableElements;
@@ -294,7 +294,7 @@ export const loadFilesFromHttpStorage = async (
           const arrayBuffer = await response.arrayBuffer();
           const dataURL = new TextDecoder().decode(arrayBuffer) as DataURL;
           let mimeType;
-          let parsed = dataURL.match(/[^:]\w+\/[\w-+\d.]+(?=;|,)/);
+          const parsed = dataURL.match(/[^:]\w+\/[\w-+\d.]+(?=;|,)/);
           if (parsed) {
             mimeType = parsed[0];
           }
