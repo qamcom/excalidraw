@@ -23,12 +23,11 @@ export interface StorageBackend {
   saveFilesToStorageBackend: ({
     prefix,
     files,
+    roomKey,
   }: {
     prefix: string;
-    files: {
-      id: FileId;
-      buffer: Uint8Array;
-    }[];
+    files: Map<FileId, BinaryFileData>;
+    roomKey: string;
   }) => Promise<{
     savedFiles: FileId[];
     erroredFiles: FileId[];

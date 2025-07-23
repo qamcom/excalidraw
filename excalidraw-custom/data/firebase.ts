@@ -30,7 +30,13 @@ import type {
   DataURL,
 } from "@excalidraw/excalidraw/types";
 
-import { FILE_CACHE_MAX_AGE_SEC } from "../app_constants";
+import {
+  FILE_CACHE_MAX_AGE_SEC,
+  FILE_UPLOAD_MAX_BYTES,
+  FIREBASE_STORAGE_PREFIXES,
+} from "../app_constants";
+
+import { encodeFilesForUpload } from "./FileManager";
 
 import { getSyncableElements } from ".";
 
@@ -145,19 +151,28 @@ export const isSavedToFirebase = (
 export const saveFilesToFirebase = async ({
   prefix,
   files,
+  roomKey,
 }: {
   prefix: string;
-  files: { id: FileId; buffer: Uint8Array }[];
+  files: Map<FileId, BinaryFileData>;
+  roomKey: string;
 }) => {
+  const compressedFiles = await encodeFilesForUpload({
+    files,
+    encryptionKey: roomKey,
+    maxBytes: FILE_UPLOAD_MAX_BYTES,
+  });
+
   const storage = await loadFirebaseStorage();
 
   const erroredFiles: FileId[] = [];
   const savedFiles: FileId[] = [];
+  const fullPrefix = `${FIREBASE_STORAGE_PREFIXES.collabFiles}/${prefix}`;
 
   await Promise.all(
-    files.map(async ({ id, buffer }) => {
+    compressedFiles.map(async ({ id, buffer }) => {
       try {
-        const storageRef = ref(storage, `${prefix}/${id}`);
+        const storageRef = ref(storage, `${fullPrefix}/${id}`);
         await uploadBytes(storageRef, buffer, {
           cacheControl: `public, max-age=${FILE_CACHE_MAX_AGE_SEC}`,
         });
@@ -276,13 +291,14 @@ export const loadFilesFromFirebase = async (
 ) => {
   const loadedFiles: BinaryFileData[] = [];
   const erroredFiles = new Map<FileId, true>();
+  const fullPrefix = `${FIREBASE_STORAGE_PREFIXES.collabFiles}/${prefix}`;
 
   await Promise.all(
     [...new Set(filesIds)].map(async (id) => {
       try {
         const url = `https://firebasestorage.googleapis.com/v0/b/${
           FIREBASE_CONFIG.storageBucket
-        }/o/${encodeURIComponent(prefix.replace(/^\//, ""))}%2F${id}`;
+        }/o/${encodeURIComponent(fullPrefix.replace(/^\//, ""))}%2F${id}`;
         const response = await fetch(`${url}?alt=media`);
         if (response.status < 400) {
           const arrayBuffer = await response.arrayBuffer();

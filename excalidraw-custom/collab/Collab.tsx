@@ -52,8 +52,8 @@ import type { Mutable, ValueOf } from "@excalidraw/common/utility-types";
 import { appJotaiStore, atom } from "../app-jotai";
 import {
   CURSOR_SYNC_TIMEOUT,
-  FILE_UPLOAD_MAX_BYTES,
-  FIREBASE_STORAGE_PREFIXES,
+  //FILE_UPLOAD_MAX_BYTES,
+  //FIREBASE_STORAGE_PREFIXES,
   INITIAL_SCENE_UPDATE_TIMEOUT,
   LOAD_IMAGES_TIMEOUT,
   WS_SUBTYPES,
@@ -62,7 +62,7 @@ import {
 } from "../app_constants";
 
 import {
-  encodeFilesForUpload,
+  //encodeFilesForUpload,
   FileManager,
   updateStaleImageStatuses,
 } from "../data/FileManager";
@@ -162,7 +162,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
         const storageBackend = await getStorageBackend();
         return storageBackend.loadFilesFromStorageBackend(
-          `files/rooms/${roomId}`,
+          roomId,
           roomKey,
           fileIds,
         );
@@ -176,12 +176,9 @@ class Collab extends PureComponent<CollabProps, CollabState> {
         const storageBackend = await getStorageBackend();
         const { savedFiles, erroredFiles } =
           await storageBackend.saveFilesToStorageBackend({
-            prefix: `${FIREBASE_STORAGE_PREFIXES.collabFiles}/${roomId}`,
-            files: await encodeFilesForUpload({
-              files: addedFiles,
-              encryptionKey: roomKey,
-              maxBytes: FILE_UPLOAD_MAX_BYTES,
-            }),
+            prefix: `${roomId}`,
+            files: addedFiles,
+            roomKey,
           });
 
         return {

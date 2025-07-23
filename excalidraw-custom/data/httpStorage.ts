@@ -20,6 +20,8 @@ import { exportToCanvas } from "@excalidraw/excalidraw/scene/export";
 
 import { canvasToBlob } from "@excalidraw/excalidraw/data/blob";
 
+import { t } from "@excalidraw/excalidraw/i18n";
+
 import type {
   AppState,
   BinaryFileData,
@@ -32,6 +34,8 @@ import type {
   FileId,
   NonDeletedExcalidrawElement,
 } from "@excalidraw/element/types";
+
+import { FILE_UPLOAD_MAX_BYTES } from "../app_constants";
 
 import { getSyncableElements } from ".";
 
@@ -208,26 +212,52 @@ export const loadFromHttpStorage = async (
 export const saveFilesToHttpStorage = async ({
   prefix,
   files,
+  roomKey,
 }: {
   prefix: string;
-  files: { id: FileId; buffer: Uint8Array }[];
+  files: Map<FileId, BinaryFileData>;
+  roomKey: string;
 }) => {
   const erroredFiles: FileId[] = [];
   const savedFiles: FileId[] = [];
-  const tenantId = "unknown";
+  const maxBytes = FILE_UPLOAD_MAX_BYTES;
+  const tenantId = getTenantFromURLPathname();
+  if (!tenantId) {
+    return { savedFiles, erroredFiles };
+  }
+
+  const processedFiles: {
+    id: FileId;
+    buffer: Uint8Array;
+  }[] = [];
+
+  for (const [id, fileData] of files) {
+    const buffer = new TextEncoder().encode(fileData.dataURL);
+
+    if (buffer.byteLength > maxBytes) {
+      throw new Error(
+        t("errors.fileTooBig", {
+          maxSize: `${Math.trunc(maxBytes / 1024 / 1024)}MB`,
+        }),
+      );
+    }
+
+    processedFiles.push({
+      id,
+      buffer,
+    });
+  }
 
   await Promise.all(
-    files.map(async ({ id, buffer }) => {
+    processedFiles.map(async ({ id, buffer }) => {
       try {
         const payloadBlob = new Blob([buffer]);
-        const payload = await new Response(payloadBlob).arrayBuffer();
+        const payload = new FormData();
+        payload.append("file", payloadBlob);
         await fetch(
-          `${HTTP_STORAGE_BACKEND_URL}/${tenantId}/${HTTP_URL_PREFIX}files/${id}`,
+          `${HTTP_STORAGE_BACKEND_URL}/${tenantId}/${HTTP_URL_PREFIX}files/${prefix}/${id}`,
           {
             method: "POST",
-            /*           headers: {
-            "Content-Type": "application/json", // TODO
-          }, */
             body: payload,
           },
         );
@@ -249,34 +279,30 @@ export const loadFilesFromHttpStorage = async (
   const loadedFiles: BinaryFileData[] = [];
   const erroredFiles = new Map<FileId, true>();
 
-  const tenantId = "unknown"; /* getTenantIdFromRoomId(roomId);
+  const tenantId = getTenantFromURLPathname();
   if (!tenantId) {
-    return null;
-  }  */
+    return { loadedFiles, erroredFiles };
+  }
 
   await Promise.all(
     [...new Set(filesIds)].map(async (id) => {
       try {
         const response = await fetch(
-          `${HTTP_STORAGE_BACKEND_URL}/${tenantId}/${HTTP_URL_PREFIX}files/${id}`,
+          `${HTTP_STORAGE_BACKEND_URL}/${tenantId}/${HTTP_URL_PREFIX}files/${prefix}/${id}`,
         );
         if (response.status < 400) {
           const arrayBuffer = await response.arrayBuffer();
-
-          const { data, metadata } = await decompressData<BinaryFileMetadata>(
-            new Uint8Array(arrayBuffer),
-            {
-              decryptionKey,
-            },
-          );
-
-          const dataURL = new TextDecoder().decode(data) as DataURL;
-
+          const dataURL = new TextDecoder().decode(arrayBuffer) as DataURL;
+          let mimeType;
+          let parsed = dataURL.match(/[^:]\w+\/[\w-+\d.]+(?=;|,)/);
+          if (parsed) {
+            mimeType = parsed[0];
+          }
           loadedFiles.push({
-            mimeType: metadata.mimeType || MIME_TYPES.binary,
+            mimeType: mimeType || MIME_TYPES.binary,
             id,
             dataURL,
-            created: metadata?.created || Date.now(),
+            created: /* metadata?.created ||*/ Date.now(),
           });
         } else {
           erroredFiles.set(id, true);
