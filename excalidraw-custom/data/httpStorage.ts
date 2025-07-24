@@ -18,24 +18,18 @@ import { DEFAULT_EXPORT_PADDING } from "@excalidraw/common";
 
 import { exportToCanvas } from "@excalidraw/excalidraw/scene/export";
 
-import { canvasToBlob } from "@excalidraw/excalidraw/data/blob";
-
-import { t } from "@excalidraw/excalidraw/i18n";
+import { canvasToBlob, getDataURL } from "@excalidraw/excalidraw/data/blob";
 
 import type {
   AppState,
   BinaryFileData,
-  //BinaryFileMetadata,
   BinaryFiles,
-  DataURL,
 } from "@excalidraw/excalidraw/types";
 import type {
   ExcalidrawElement,
   FileId,
   NonDeletedExcalidrawElement,
 } from "@excalidraw/element/types";
-
-import { FILE_UPLOAD_MAX_BYTES } from "../app_constants";
 
 import { getSyncableElements } from ".";
 
@@ -177,7 +171,7 @@ export const saveToHttpStorage = async (
 
   if (result) {
     httpStorageSceneVersionCache.set(socket, sceneVersion);
-    const files: BinaryFiles = {};
+    const files = portal.collab.excalidrawAPI.getFiles();
     const blob = await exportAsPng(reconciledElements, appState, files);
     saveRoomPreviewToHttpStorage(tenantId, roomId, blob);
     return reconciledElements;
@@ -220,7 +214,6 @@ export const saveFilesToHttpStorage = async ({
 }) => {
   const erroredFiles: FileId[] = [];
   const savedFiles: FileId[] = [];
-  const maxBytes = FILE_UPLOAD_MAX_BYTES;
   const tenantId = getTenantFromURLPathname();
   if (!tenantId) {
     return { savedFiles, erroredFiles };
@@ -228,30 +221,23 @@ export const saveFilesToHttpStorage = async ({
 
   const processedFiles: {
     id: FileId;
-    buffer: Uint8Array;
+    buffer: Blob;
   }[] = [];
 
   for (const [id, fileData] of files) {
-    const buffer = new TextEncoder().encode(fileData.dataURL);
-
-    if (buffer.byteLength > maxBytes) {
-      throw new Error(
-        t("errors.fileTooBig", {
-          maxSize: `${Math.trunc(maxBytes / 1024 / 1024)}MB`,
-        }),
-      );
-    }
-
+    const blob = await fetch(fileData.dataURL).then((response) =>
+      response.blob(),
+    );
     processedFiles.push({
       id,
-      buffer,
+      buffer: blob,
     });
   }
 
   await Promise.all(
     processedFiles.map(async ({ id, buffer }) => {
       try {
-        const payloadBlob = new Blob([buffer]);
+        const payloadBlob = buffer;
         const payload = new FormData();
         payload.append("file", payloadBlob);
         await fetch(
@@ -291,13 +277,10 @@ export const loadFilesFromHttpStorage = async (
           `${HTTP_STORAGE_BACKEND_URL}/${tenantId}/${HTTP_URL_PREFIX}files/${prefix}/${id}`,
         );
         if (response.status < 400) {
-          const arrayBuffer = await response.arrayBuffer();
-          const dataURL = new TextDecoder().decode(arrayBuffer) as DataURL;
-          let mimeType;
-          const parsed = dataURL.match(/[^:]\w+\/[\w-+\d.]+(?=;|,)/);
-          if (parsed) {
-            mimeType = parsed[0];
-          }
+          const blob = await response.blob();
+          const dataURL = await getDataURL(blob);
+          const mimeType = blob.type;
+
           loadedFiles.push({
             mimeType: mimeType || MIME_TYPES.binary,
             id,
