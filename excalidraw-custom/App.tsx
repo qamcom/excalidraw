@@ -418,7 +418,7 @@ const ExcalidrawWrapper = () => {
       if (collabAPI?.isCollaborating()) {
         if (data.scene.elements) {
           collabAPI
-            .fetchImageFilesFromFirebase({
+            .fetchImageFilesFromStorageBackend({
               elements: data.scene.elements,
               forceFetchFiles: true,
             })
