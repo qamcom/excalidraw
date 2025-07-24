@@ -89,7 +89,7 @@ export const isSavedToHttpStorage = (
   portal: Portal,
   elements: readonly ExcalidrawElement[],
 ): boolean => {
-  if (portal.socket && portal.roomId && portal.roomKey) {
+  if (portal.socket && portal.roomId) {
     const sceneVersion = hashElementsVersion(elements);
 
     return httpStorageSceneVersionCache.get(portal.socket) === sceneVersion;
@@ -104,12 +104,11 @@ export const saveToHttpStorage = async (
   elements: readonly SyncableExcalidrawElement[],
   appState: AppState,
 ) => {
-  const { roomId, roomKey, socket } = portal;
+  const { roomId, socket } = portal;
   if (
     // if no room exists, consider the room saved because there's nothing we can
     // do at this point
     !roomId ||
-    !roomKey ||
     !socket ||
     isSavedToHttpStorage(portal, elements)
   ) {
@@ -131,7 +130,6 @@ export const saveToHttpStorage = async (
   }
   if (getResponse.status === 404) {
     const result: boolean = await saveElementsToBackend(
-      roomKey,
       roomId,
       tenantId,
       [...elements],
@@ -162,7 +160,6 @@ export const saveToHttpStorage = async (
   );
 
   const result: boolean = await saveElementsToBackend(
-    roomKey,
     roomId,
     tenantId,
     reconciledElements,
@@ -301,7 +298,6 @@ export const loadFilesFromHttpStorage = async (
 };
 
 const saveElementsToBackend = async (
-  roomKey: string,
   roomId: string,
   tenantId: string,
   elements: SyncableExcalidrawElement[],

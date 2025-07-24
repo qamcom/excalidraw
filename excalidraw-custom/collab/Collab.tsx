@@ -122,7 +122,7 @@ export interface CollabAPI {
   startCollaboration: CollabInstance["startCollaboration"];
   stopCollaboration: CollabInstance["stopCollaboration"];
   syncElements: CollabInstance["syncElements"];
-  fetchImageFilesFromFirebase: CollabInstance["fetchImageFilesFromFirebase"];
+  fetchImageFilesFromStorageBackend: CollabInstance["fetchImageFilesFromStorageBackend"];
   setUsername: CollabInstance["setUsername"];
   getUsername: CollabInstance["getUsername"];
   getActiveRoomLink: CollabInstance["getActiveRoomLink"];
@@ -239,7 +239,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       onPointerUpdate: this.onPointerUpdate,
       startCollaboration: this.startCollaboration,
       syncElements: this.syncElements,
-      fetchImageFilesFromFirebase: this.fetchImageFilesFromFirebase,
+      fetchImageFilesFromStorageBackend: this.fetchImageFilesFromStorageBackend,
       stopCollaboration: this.stopCollaboration,
       setUsername: this.setUsername,
       getUsername: this.getUsername,
@@ -295,31 +295,33 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     this.destroySocketClient({ isUnload: true });
   };
 
-  private beforeUnload = withBatchedUpdates((event: BeforeUnloadEvent) => {
-    const syncableElements = getSyncableElements(
-      this.getSceneElementsIncludingDeleted(),
-    );
+  private beforeUnload = withBatchedUpdates(
+    async (event: BeforeUnloadEvent) => {
+      const syncableElements = getSyncableElements(
+        this.getSceneElementsIncludingDeleted(),
+      );
+      const storageBackend = await getStorageBackend();
+      if (
+        (this.isCollaborating() &&
+          this.fileManager.shouldPreventUnload(syncableElements)) ||
+        !storageBackend.isSaved(this.portal, syncableElements)
+      ) {
+        // this won't run in time if user decides to leave the site, but
+        //  the purpose is to run in immediately after user decides to stay
+        this.saveCollabRoomToStorageBackend(syncableElements);
 
-    if (
-      this.isCollaborating() &&
-      this.fileManager.shouldPreventUnload(syncableElements) /* || */
-      /*       !isSavedToFirebase(this.portal, syncableElements)) */
-    ) {
-      // this won't run in time if user decides to leave the site, but
-      //  the purpose is to run in immediately after user decides to stay
-      this.saveCollabRoomToFirebase(syncableElements);
-
-      if (import.meta.env.VITE_APP_DISABLE_PREVENT_UNLOAD !== "true") {
-        preventUnload(event);
-      } else {
-        console.warn(
-          "preventing unload disabled (VITE_APP_DISABLE_PREVENT_UNLOAD)",
-        );
+        if (import.meta.env.VITE_APP_DISABLE_PREVENT_UNLOAD !== "true") {
+          preventUnload(event);
+        } else {
+          console.warn(
+            "preventing unload disabled (VITE_APP_DISABLE_PREVENT_UNLOAD)",
+          );
+        }
       }
-    }
-  });
+    },
+  );
 
-  saveCollabRoomToFirebase = async (
+  saveCollabRoomToStorageBackend = async (
     syncableElements: readonly SyncableExcalidrawElement[],
   ) => {
     try {
@@ -363,11 +365,11 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
   stopCollaboration = (keepRemoteState = true) => {
     this.queueBroadcastAllElements.cancel();
-    this.queueSaveToFirebase.cancel();
+    this.queueSaveToStorageBackend.cancel();
     this.loadImageFiles.cancel();
     this.resetErrorIndicator(true);
 
-    this.saveCollabRoomToFirebase(
+    this.saveCollabRoomToStorageBackend(
       getSyncableElements(
         this.excalidrawAPI.getSceneElementsIncludingDeleted(),
       ),
@@ -424,7 +426,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     }
   };
 
-  private fetchImageFilesFromFirebase = async (opts: {
+  private fetchImageFilesFromStorageBackend = async (opts: {
     elements: readonly ExcalidrawElement[];
     /**
      * Indicates whether to fetch files that are errored or pending and older
@@ -563,7 +565,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
         captureUpdate: CaptureUpdateAction.NEVER,
       });
 
-      this.saveCollabRoomToFirebase(getSyncableElements(elements));
+      this.saveCollabRoomToStorageBackend(getSyncableElements(elements));
     }
 
     // fallback in case you're not alone in the room but still don't receive
@@ -781,7 +783,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
   private loadImageFiles = throttle(async () => {
     const { loadedFiles, erroredFiles } =
-      await this.fetchImageFilesFromFirebase({
+      await this.fetchImageFilesFromStorageBackend({
         elements: this.excalidrawAPI.getSceneElementsIncludingDeleted(),
       });
 
@@ -947,7 +949,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
   syncElements = (elements: readonly OrderedExcalidrawElement[]) => {
     this.broadcastElements(elements);
-    this.queueSaveToFirebase();
+    this.queueSaveToStorageBackend();
   };
 
   queueBroadcastAllElements = throttle(() => {
@@ -964,10 +966,10 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     this.setLastBroadcastedOrReceivedSceneVersion(newVersion);
   }, SYNC_FULL_SCENE_INTERVAL_MS);
 
-  queueSaveToFirebase = throttle(
+  queueSaveToStorageBackend = throttle(
     () => {
       if (this.portal.socketInitialized) {
-        this.saveCollabRoomToFirebase(
+        this.saveCollabRoomToStorageBackend(
           getSyncableElements(
             this.excalidrawAPI.getSceneElementsIncludingDeleted(),
           ),
