@@ -144,6 +144,7 @@ import type { CollabAPI } from "./collab/Collab";
 polyfill();
 
 window.EXCALIDRAW_THROTTLE_RENDER = true;
+window.EXCALIDRAW_ASSET_PATH = "/";
 
 declare global {
   interface BeforeInstallPromptEventChoiceResult {
